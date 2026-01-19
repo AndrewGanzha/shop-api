@@ -42,11 +42,17 @@ async def create_product(product: ProductCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/category/{category_id}")
-async def get_products_by_category(category_id: int):
-    """
-    Возвращает список товаров в указанной категории по её ID.
-    """
-    return {"message": f"Товары в категории {category_id} (заглушка)"}
+async def get_products_by_category(category_id: int, db: Session = Depends(get_db)):
+    stmt = select(CategoryModel).where(CategoryModel.id == category_id)
+    category = db.scalars(stmt).first()
+
+    if category is None:
+        raise HTTPException(status_code=400, detail="Category not found or inactive")
+
+    stmt = select(ProductModel).where(ProductModel.category_id == category_id)
+    products = db.scalars(stmt).all()
+
+    return products
 
 
 @router.get("/{product_id}")
