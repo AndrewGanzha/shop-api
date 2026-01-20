@@ -93,8 +93,14 @@ async def update_product(product_id: int, new_product: ProductCreate, db: Sessio
 
 
 @router.delete("/{product_id}")
-async def delete_product(product_id: int):
-    """
-    Удаляет товар по его ID.
-    """
-    return {"message": f"Товар {product_id} удалён (заглушка)"}
+async def delete_product(product_id: int, db: Session = Depends(get_db)):
+    stmt = select(ProductModel).where(ProductModel.id == product_id)
+    product = db.scalars(stmt).first()
+
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    db.execute(update(ProductModel).where(ProductModel.id == product_id).values(is_active=False))
+    db.commit()
+
+    return {"status": "success", "message": "Product marked as inactive"}
