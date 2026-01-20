@@ -56,19 +56,40 @@ async def get_products_by_category(category_id: int, db: Session = Depends(get_d
 
 
 @router.get("/{product_id}")
-async def get_product(product_id: int):
-    """
-    Возвращает детальную информацию о товаре по его ID.
-    """
-    return {"message": f"Детали товара {product_id} (заглушка)"}
+async def get_product(product_id: int, db: Session = Depends(get_db)):
+    stmt = select(ProductModel).where(ProductModel.id == product_id)
+    product = db.scalars(stmt).first()
+
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    return product
 
 
 @router.put("/{product_id}")
-async def update_product(product_id: int):
-    """
-    Обновляет товар по его ID.
-    """
-    return {"message": f"Товар {product_id} обновлён (заглушка)"}
+async def update_product(product_id: int, new_product: ProductCreate, db: Session = Depends(get_db)):
+    stmt = select(ProductModel).where(ProductModel.id == product_id)
+    product = db.scalars(stmt).first()
+
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    stmt_category = select(CategoryModel).where(CategoryModel.id == new_product.category_id)
+    category = db.scalars(stmt_category).first()
+
+    if category is None:
+        raise HTTPException(status_code=400, detail="Category not found or inactive")
+
+
+    db.execute(
+        update(ProductModel)
+        .where(ProductModel.id == product_id)
+        .values(**new_product.model_dump())
+    )
+    db.commit()
+    db.refresh(product)
+
+    return product
 
 
 @router.delete("/{product_id}")
