@@ -44,6 +44,11 @@ async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_as
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
+    old_review = await db.scalar(select(Review).where(Review.user_id == current_user.id, Review.is_active == True))
+
+    if old_review:
+        raise HTTPException(status_code=403, detail="Already have review")
+
     review = Review(
         user_id = current_user.id,
         product_id = payload.product_id,

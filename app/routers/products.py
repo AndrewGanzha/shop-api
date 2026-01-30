@@ -5,10 +5,12 @@ from fastapi.params import Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import get_current_user
 from app.db_depends import get_db
 from app.schemas.products import ProductCreate, Product as ProductSchema
 from sqlalchemy import select, update
 from app.models import Product as ProductModel
+from app.models.users import User as UserModel
 from app.models.categories import Category as CategoryModel
 from app.db_depends import get_async_db
 
@@ -27,19 +29,30 @@ async def get_all_products(db: AsyncSession = Depends(get_async_db)):
 
 
 @router.post("/", response_model=ProductSchema)
-async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_async_db)):
+async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_async_db), current_user: UserModel = Depends(get_current_user)):
+    if current_user.role != "seller":
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
     result = await db.scalars(select(CategoryModel).where(CategoryModel.id == product.category_id, CategoryModel.is_active == True))
     category = result.first()
 
     if category is None:
         raise HTTPException(status_code=400, detail="Category not found")
 
-    db_product = ProductModel(**product.model_dump())
-    db.add(db_product)
+    product = ProductModel(
+        name=product.name,
+        description=product.description,
+        price=product.price,
+        image_url=product.image_url,
+        stock=product.stock,
+        category_id=product.category_id,
+        seller_id=current_user.id,
+    )
+    db.add(product)
     await db.commit()
-    await db.refresh(db_product)
+    await db.refresh(product)
 
-    return db_product
+    return product
 
 
 @router.get("/category/{category_id}")
