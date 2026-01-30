@@ -1,3 +1,4 @@
 ecommerce.db
 __pycache__
 .idea
+.lock

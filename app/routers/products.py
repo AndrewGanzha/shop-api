@@ -6,8 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db_depends import get_db
-from app.schemas import ProductCreate
-from app.schemas import Product as ProductSchema
+from app.schemas.products import ProductCreate, Product as ProductSchema
 from sqlalchemy import select, update
 from app.models import Product as ProductModel
 from app.models.categories import Category as CategoryModel
