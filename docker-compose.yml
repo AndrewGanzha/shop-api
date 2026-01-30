@@ -7,6 +7,8 @@ services:
       - "8000:8000"
     depends_on:
       - db
+    env_file:
+      - .env
     environment:
       DATABASE_URL: "postgresql+asyncpg://shop:shop@db:5432/shop"
 
