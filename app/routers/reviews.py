@@ -1,5 +1,6 @@
 from typing import List
 
+from aiohttp import payload
 from fastapi import Depends, APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,14 +68,23 @@ async def delete_review(review_id: int, db: AsyncSession = Depends(get_async_db)
     if current_user.role != "buyer":
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    review = await db.scalar(select(Review).where(Review.is_active == True, Review.id == review_id))
+    old_review = await db.scalar(select(Review).where(Review.is_active == True, Review.id == review_id))
 
-    if not review:
+    if not old_review:
         raise HTTPException(status_code=404, detail="Review not found")
 
-    if not review.user_id == current_user.id:
+    if not old_review.user_id == current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    await db.delete(review)
+
+    review = Review(
+        user_id = current_user.id,
+        product_id = old_review.product_id,
+        comment = old_review.comment,
+        grade = old_review.grade,
+        is_active = False
+    )
+
     await db.commit()
+    await db.refresh(review)
     return { "message": f"Review {review_id} deleted" }
