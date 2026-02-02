@@ -61,3 +61,20 @@ async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_as
     await db.refresh(review)
 
     return review
+
+@router.delete("/{review_id}")
+async def delete_review(review_id: int, db: AsyncSession = Depends(get_async_db), current_user: UserModel = Depends(get_current_user)):
+    if current_user.role != "buyer":
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    review = await db.scalar(select(Review).where(Review.is_active == True, Review.id == review_id))
+
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    if not review.user_id == current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    await db.delete(review)
+    await db.commit()
+    return { "message": f"Review {review_id} deleted" }
