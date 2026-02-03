@@ -36,31 +36,56 @@ async def get_review(products_id: int, db: AsyncSession = Depends(get_async_db))
     return reviews
 
 @router.post("/", response_model=ReviewSchema)
-async def create_review(payload: ReviewCreate, db: AsyncSession = Depends(get_async_db), current_user: UserModel = Depends(get_current_user)):
+async def create_review(
+    payload: ReviewCreate,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     if current_user.role != "buyer":
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    product = await db.scalar(select(Product).where(Product.id == payload.product_id, Product.is_active == True))
-
+    product = await db.scalar(
+        select(Product).where(
+            Product.id == payload.product_id,
+            Product.is_active.is_(True),
+        )
+    )
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    old_review = await db.scalar(select(Review).where(Review.user_id == current_user.id, Review.is_active == True))
-
+    old_review = await db.scalar(
+        select(Review).where(
+            Review.user_id == current_user.id,
+            Review.product_id == payload.product_id,
+            Review.is_active.is_(True),
+        )
+    )
     if old_review:
         raise HTTPException(status_code=403, detail="Already have review")
 
     review = Review(
-        user_id = current_user.id,
-        product_id = payload.product_id,
-        comment = payload.comment,
-        grade = payload.grade,
+        user_id=current_user.id,
+        product_id=payload.product_id,
+        comment=payload.comment,
+        grade=payload.grade,
     )
-
     db.add(review)
+    await db.flush()
+
+    grades = (
+        await db.scalars(
+            select(Review.grade).where(
+                Review.is_active.is_(True),
+                Review.product_id == product.id,
+                Review.grade.isnot(None),
+            )
+        )
+    ).all()
+
+    product.rating = (sum(grades) / len(grades)) if grades else None
+
     await db.commit()
     await db.refresh(review)
-
     return review
 
 @router.delete("/{review_id}")

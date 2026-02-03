@@ -31,5 +31,6 @@ class Product(BaseModel):
     stock: int = Field(..., description="Количество товара на складе")
     category_id: int = Field(..., description="ID категории")
     is_active: bool = Field(..., description="Активность товара")
+    rating: int = Field(description="Средний рейтинг по отзывам")
 
     model_config = ConfigDict(from_attributes=True)
