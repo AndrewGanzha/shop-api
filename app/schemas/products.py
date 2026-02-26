@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -32,6 +33,8 @@ class Product(BaseModel):
     category_id: int = Field(..., description="ID категории")
     is_active: bool = Field(..., description="Активность товара")
     rating: int | None = Field(None, description="Средний рейтинг по отзывам")
+    created_at: datetime | None = Field(None, description="Дата и время создания товара (UTC)")
+    updated_at: datetime | None = Field(None, description="Дата и время последнего обновления товара (UTC)")
 
     model_config = ConfigDict(from_attributes=True)
 

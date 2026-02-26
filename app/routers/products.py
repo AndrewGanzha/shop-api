@@ -1,4 +1,4 @@
-from typing import List
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status, Query
 from fastapi.params import Depends
@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.schemas.products import ProductCreate, Product as ProductSchema, ProductList
-from sqlalchemy import select, func, desc, update
+from sqlalchemy import select, func, update
 from app.models import Product as ProductModel
 from app.models.users import User as UserModel
 from app.models.categories import Category as CategoryModel
@@ -32,6 +32,10 @@ async def get_all_products(
             None, description="true — только товары в наличии, false — только без остатка"),
         seller_id: int | None = Query(
             None, description="ID продавца для фильтрации"),
+        created_at: date | None = Query(
+            None, description="Дата создания товара в формате YYYY-MM-DD для фильтрации"),
+        updated_at: date | None = Query(
+            None, description="Дата последнего обновления товара в формате YYYY-MM-DD для фильтрации"),
         db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -57,6 +61,10 @@ async def get_all_products(
         filters.append(ProductModel.stock > 0 if in_stock else ProductModel.stock == 0)
     if seller_id is not None:
         filters.append(ProductModel.seller_id == seller_id)
+    if created_at is not None:
+        filters.append(func.date(ProductModel.created_at) == created_at)
+    if updated_at is not None:
+        filters.append(func.date(ProductModel.updated_at) == updated_at)
 
     # Подсчёт общего количества с учётом фильтров
     total_stmt = select(func.count()).select_from(ProductModel).where(*filters)
@@ -90,6 +98,7 @@ async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_
     if category is None:
         raise HTTPException(status_code=400, detail="Category not found")
 
+    now = datetime.now(timezone.utc)
     product = ProductModel(
         name=product.name,
         description=product.description,
@@ -98,6 +107,8 @@ async def create_product(product: ProductCreate, db: AsyncSession = Depends(get_
         stock=product.stock,
         category_id=product.category_id,
         seller_id=current_user.id,
+        created_at=now,
+        updated_at=now,
     )
     db.add(product)
     await db.commit()
@@ -158,7 +169,7 @@ async def update_product(product_id: int, new_product: ProductCreate, db: AsyncS
     await db.execute(
         update(ProductModel)
         .where(ProductModel.id == product_id)
-        .values(**new_product.model_dump())
+        .values(**new_product.model_dump(), updated_at=datetime.now(timezone.utc))
     )
     await db.commit()
     await db.refresh(product)
