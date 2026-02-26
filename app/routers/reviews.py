@@ -1,6 +1,5 @@
 from typing import List
 
-from aiohttp import payload
 from fastapi import Depends, APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

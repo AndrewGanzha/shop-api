@@ -1,12 +1,10 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from fastapi.params import Depends
-from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
-from app.db_depends import get_db
 from app.schemas.products import ProductCreate, Product as ProductSchema
 from sqlalchemy import select, update
 from app.models import Product as ProductModel
@@ -110,7 +108,7 @@ async def update_product(product_id: int, new_product: ProductCreate, db: AsyncS
         .values(**new_product.model_dump())
     )
     await db.commit()
-    db.refresh(product)
+    await db.refresh(product)
 
     return product
 
